@@ -57,6 +57,16 @@ namespace simul
 		float b(Atom *i, Atom *j);								// (9)
 		float N_ijk(Atom *i, Atom *j, Atom *k);				// (10)
 		float N(Atom *i);										// (11)
+		float G(Atom *i, Atom *j, Atom *k);						// (12)
+		float y_0(float z);									// (13)
+		float G_1(float y);									// (14)
+		float G_2(float y, float z, float y0);				// (15)
+		float g_z_max(float y0);								// (16)
+		float g_z_2(float z);									// (17)
+		float g_z_1(float y0, float g_z2);					// (18)
+		float g_z_0(float y0, float g_zMax,
+					float g_z1, float g_z2);					// (19)
+
 		float H(Atom *i, Atom *j, Atom *k);						// (20)
 
 		float F_conj(Atom *i, Atom *j);						// (22)
