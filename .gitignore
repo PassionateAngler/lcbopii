@@ -3,3 +3,5 @@ test
 *.log
 *.a
 .*
+dat/
+splines/

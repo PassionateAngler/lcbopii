@@ -4,10 +4,10 @@
 
 namespace simul
 {
-	Atom::Atom(float x, float y, float z):
+	Atom::Atom(double x, double y, double z):
 			id(-1)
 	{
-		this->r = gmtl::Vec3f(x, y, z);
+		this->r = gmtl::Vec3d(x, y, z);
 	}
 
 	int Atom::removeBond(Atom *j, bool reverse)

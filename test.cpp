@@ -4,6 +4,7 @@
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <deque>
+#include <cmath>
 #include "atom.h"
 #include "lcbopii.h"
 
@@ -11,14 +12,10 @@ using namespace  simul;
 int main()
 {
    //Atom::bond_type atoms, atoms2;
-   std::deque<Atom *> atoms;
+   /*std::deque<Atom *> atoms;
    for(int i=0; i<10; i++)
    {
-	   /*
-	   atoms.push_front(new Atom());
-	   Atom::bond_type::iterator tmp = atoms.begin();
-	   tmp->ppppp = i;
-	   */
+
 	   Atom * a = new Atom(i*2.0, i/2.0, i/3.0);
 	   a->id = i;
 	   atoms.push_back(a);
@@ -40,21 +37,35 @@ int main()
 	   {
 		   std::cout << "\t" << (*jt)->id << std::endl;
 	   }
-   }
+   }*/
 
    LCBOPII lcbopii;// = new LCBOPII();
-   //int i = 0;
-/*
-   std::cout << lcbopii.S_down(0.0,-3.0) << std::endl;
-   std::cout << lcbopii.S_down(0.5, -3.0) << std::endl;
-   std::cout << lcbopii.S_down(1.0,-3.0) << std::endl;
-*/
 
-   gmtl::Vec3f v1(1.0, 0,0);
-   gmtl::Vec3f v2(0.0, 1.0,0);
-   gmtl::Vec3f diff = v1 - v2;
+   double y = -1.0;
+   double step =2/100.0; // 1 - (-1)
+   double z = 0.0;
+   double y0;
 
-   float length = gmtl::length(diff);
-   std::cout << length << std::endl;
+   while(z <= 8)
+   {
+	   y = -1.0;
+	   std::cout << "# z=" << z << std::endl;
+
+	   while(y <= 1.0)
+	   {
+		   std::cout << y << " " << lcbopii.G(y,z) << std::endl;
+		   //std::cout << y << " " << lcbopii.G_1(y) << std::endl;
+		   //std::cout << std::pow((1 - y), 2) << std::endl;
+		   y += step;
+	   }
+	   y0 = lcbopii.y_0(z);
+	   //std::cout << "G_1(y0) = " << lcbopii.G_1(y0) << " G_2(y0) = " << lcbopii.G_2(y0, z, y0) << std::endl;
+	   //std::cout << "G_1_prim(y0) = " << lcbopii.G_1_prim(y0)
+		//	     << " G_2_prim(y0) = " << lcbopii.G_2_prim(y0, z, y0) << std::endl;
+	   std::cout << std::endl;
+	   std::cout << std::endl;
+	   z += 1.0;
+   }
+
    return 1;
 }
