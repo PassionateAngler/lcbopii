@@ -111,6 +111,24 @@ namespace simul
 	const double LCBOPII::E_g = 0.050977653631;
 
 	/**
+	 *	parameters for H(x) function
+	 */
+	const double LCBOPII::d = 0.14;
+	const double LCBOPII::C_1 = 3.335;
+	const double LCBOPII::C_4 = 220.0;
+	const double LCBOPII::C_6 = -(std::pow(C_1, 2) + 12*C_4*std::pow(d, 2))
+									/(30*std::pow(d, 4));
+
+	const double LCBOPII::R_0 = LCBOPII::H_2(d);
+
+	const double LCBOPII::R_1 = C_1 + std::pow(C_1, 2)*d
+									+ 4*C_4*std::pow(d,3) + 6*C_6*std::pow(d,5);
+
+	const double LCBOPII::L = R_0 - 2*C_1*d;
+	const double LCBOPII::kappa = (2*C_1 - R_1)/L;
+
+
+	/**
 	 * B. Short range potential
 	 */
 	// (5)
@@ -204,9 +222,6 @@ namespace simul
 	double LCBOPII::G(double y, double z)
 	{
 		double y_zero = y_0(z);
-		std::cout << "#Y0 " << y_zero << std::endl;
-		std::cout << "#THETA(y_zero - y) G_1=> " << THETA(y_zero - y) << std::endl;
-		std::cout << "#THETA(y - y_zero) G_2=>" << THETA(y - y_zero) << std::endl;
 		return THETA(y_zero - y)*G_1(y) + THETA(y - y_zero)*G_2(y, z, y_zero);
 	}
 	// (13)
@@ -372,7 +387,46 @@ namespace simul
 	// (20)
 	double LCBOPII::H(Atom *i, Atom *j, Atom *k)
 	{
+		Atom::position_type r_ij = j->r - i->r;
+		Atom::position_type r_ik = k->r - i->r;
 
+		double delta_r_ijk = gmtl::length(r_ij) - gmtl::length(r_ik);  // (page 3)
+
+		return H(delta_r_ijk);
+	}
+
+	double LCBOPII::H(double x)
+	{
+		if(x < -d)
+		{
+			return H_1(x);
+		}
+		else if(x >= -d and x <= d)
+		{
+			return H_2(x);
+		}
+		else
+		{
+			return H_3(x);
+		}
+	}
+
+	double LCBOPII::H_1(double x)
+	{
+		return L * (
+			1 + kappa*(x + d)*std::pow(1/(1 + std::pow(kappa*(x + d),4)), 0.25)
+		);
+	}
+
+	double LCBOPII::H_2(double x)
+	{
+		return 1 + C_1*x + 0.5*std::pow(C_1*x, 2)
+					+ C_4*std::pow(x, 4) + C_6*std::pow(x, 6);
+	}
+
+	double LCBOPII::H_3(double x)
+	{
+		return R_0 + R_1*(x - d);
 	}
 
 	// (22)

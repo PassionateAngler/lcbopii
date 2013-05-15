@@ -28,6 +28,7 @@ namespace simul
 
 		const static double one_third;
 
+		// function G(x,y)
 		const static double g_min;
 		const static double g_gr;
 		const static double g_max;
@@ -41,6 +42,16 @@ namespace simul
 		const static double D_g;
 		const static double E_g;
 
+		// function H(x)
+		const static double d;
+		const static double C_1;
+		const static double C_4;
+
+		const static double L;
+		const static double R_0;
+		const static double kappa;
+		const static double R_1;
+		const static double C_6;
 
 	private:
 
@@ -101,6 +112,10 @@ namespace simul
 					double g_z1, double g_z2);						// (19)
 
 		double H(Atom *i, Atom *j, Atom *k);						// (20)
+		double H(double x);										// (20)
+		double H_1(double x);
+		static double H_2(double x);
+		double H_3(double x);
 
 		double F_conj(Atom *i, Atom *j);						// (22)
 		double A(Atom *i, Atom *j);								// (32)

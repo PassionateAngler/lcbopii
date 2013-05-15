@@ -9,6 +9,52 @@
 #include "lcbopii.h"
 
 using namespace  simul;
+
+void test_G(LCBOPII lcbopii)
+{
+	   double y = -1.0;
+	   double step =2/50.0; // 1 - (-1)
+	   double z = 0.0;
+	   double y0;
+
+	   while(z <= 8)
+	   {
+		   y = -1.0;
+		   std::cout << "# z=" << z << std::endl;
+
+		   while(y <= 1.0)
+		   {
+			   std::cout << y << " " << lcbopii.G(y,z) << std::endl;
+			   //std::cout << y << " " << lcbopii.G_1(y) << std::endl;
+			   //std::cout << std::pow((1 - y), 2) << std::endl;
+			   y += step;
+		   }
+		   y0 = lcbopii.y_0(z);
+		   //std::cout << "G_1(y0) = " << lcbopii.G_1(y0) << " G_2(y0) = " << lcbopii.G_2(y0, z, y0) << std::endl;
+		   //std::cout << "G_1_prim(y0) = " << lcbopii.G_1_prim(y0)
+			//	     << " G_2_prim(y0) = " << lcbopii.G_2_prim(y0, z, y0) << std::endl;
+		   std::cout << std::endl;
+		   std::cout << std::endl;
+		   z += 1.0;
+	   }
+}
+
+void test_H(LCBOPII lcbopii)
+{
+	double x = -1.25;
+	double step = (2.5)/400;
+
+	while(x < 1.25)
+	{
+
+		//std::cout << "# H_2(d) =" << lcbopii.H_2(lcbopii.d) << std::endl;
+		//std::cout << "# H_2_prim(d) =" << lcbopii.H_2_prim(lcbopii.d) << std::endl;
+		//std::cout << "# H_3(d) =" << lcbopii.H_3(lcbopii.d) << std::endl;
+		std::cout << x << " " << lcbopii.H(x) << std::endl;
+		x += step;
+	}
+}
+
 int main()
 {
    //Atom::bond_type atoms, atoms2;
@@ -41,31 +87,10 @@ int main()
 
    LCBOPII lcbopii;// = new LCBOPII();
 
-   double y = -1.0;
-   double step =2/100.0; // 1 - (-1)
-   double z = 0.0;
-   double y0;
-
-   while(z <= 8)
-   {
-	   y = -1.0;
-	   std::cout << "# z=" << z << std::endl;
-
-	   while(y <= 1.0)
-	   {
-		   std::cout << y << " " << lcbopii.G(y,z) << std::endl;
-		   //std::cout << y << " " << lcbopii.G_1(y) << std::endl;
-		   //std::cout << std::pow((1 - y), 2) << std::endl;
-		   y += step;
-	   }
-	   y0 = lcbopii.y_0(z);
-	   //std::cout << "G_1(y0) = " << lcbopii.G_1(y0) << " G_2(y0) = " << lcbopii.G_2(y0, z, y0) << std::endl;
-	   //std::cout << "G_1_prim(y0) = " << lcbopii.G_1_prim(y0)
-		//	     << " G_2_prim(y0) = " << lcbopii.G_2_prim(y0, z, y0) << std::endl;
-	   std::cout << std::endl;
-	   std::cout << std::endl;
-	   z += 1.0;
-   }
+   test_H(lcbopii);
+   /*std::cout << lcbopii.H(lcbopii.d) << std::endl;
+   std::cout << "H_2(d)" << lcbopii.H_2(lcbopii.d) << std::endl;
+   std::cout << "H_3(d)" << lcbopii.H_3(lcbopii.d) << std::endl;*/
 
    return 1;
 }
