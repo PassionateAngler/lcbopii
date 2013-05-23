@@ -178,7 +178,7 @@ namespace simul
 	// (8)
 	double LCBOPII::B(Atom *i, Atom *j)
 	{
-		return 0.5*(b(i,j) + b(j,i)) + F_conj(i,j) + A(i,j) + T(i,j);
+		return 0.5*(b(i,j) + b(j,i)) + F_A_T(i, j);// F_conj(i,j) + A(i,j) + T(i,j);
 	}
 	// (9)
 	double LCBOPII::b(Atom *i, Atom *j)
@@ -202,6 +202,92 @@ namespace simul
 		}
 
 		return 1.0/std::sqrt(1 + sum);
+	}
+
+	double LCBOPII::F_A_T(Atom *i, Atom*j,
+			bool enable_F, bool enable_A, bool enable_T)
+	{
+		double ret = 0.0;
+		double weight = 1.0;
+
+		/**
+		 *	K, L number of neighbours of "i" without "j" and vice versa
+		 */
+		const uint32_t K = i->get_bonds().size() - 1;
+		const uint32_t L = j->get_bonds().size() - 1;
+
+		const uint32_t MAX_CONFIGURATION = 0x01 << (K + L);
+		uint32_t sigmas_k, sigmas_l;
+
+		double Nij_el, Nji_el, Nij_max_el, Nji_max_el, Nij_min_el, Nji_min_el;
+		unsigned int Nij_sigma, Nji_sigma;
+		double Mij_sigma,  Mji_sigma;
+		double Nij_sigma_k_l_conj;
+
+		/**
+		 * Higer L bits of "configuration" are neighbours of "j" sigmas
+		 * Lower K bits of "configuration" are neighbours of "i" sigmas
+		 */
+		for(u_int32_t configuration = 0L; configuration < MAX_CONFIGURATION; configuration++)
+		{
+			//Current sigmas for "i" nn.
+			//std::cout << "conf. " << configuration << std::endl;
+			sigmas_k = configuration & (~(UINT32_MAX<<K));
+			weight = W_ij(i, j, sigmas_k);
+			if(weight == 0.0) continue;
+
+			Nij_sigma = N_ij_sigma_k(sigmas_k);
+			Mij_sigma = M_ij_sigma_k(i, j, sigmas_k);
+			Nij_el = N_ij_el(Nij_sigma, Mij_sigma);
+			Nij_min_el = N_ij_min_el(Nij_sigma);
+			Nij_max_el = N_ij_max_el(Nij_sigma);
+			//std::cout << "Nij_sigma " << Nij_sigma << std::endl;
+
+			//Current sigmas for "j" nn.
+			sigmas_l = configuration >> K;
+			weight *= W_ij(j, i, sigmas_l);
+			if(weight == 0.0) continue;
+
+			Nji_sigma =  N_ij_sigma_k(sigmas_l);
+			Mji_sigma =  M_ij_sigma_k(j, i, sigmas_l);
+			Nji_el =     N_ij_el(Nji_sigma, Mji_sigma);
+			Nji_min_el = N_ij_min_el(Nji_sigma);
+			Nji_max_el = N_ij_max_el(Nji_sigma);
+			//std::cout << "Nji_sigma " << Nji_sigma << std::endl;
+			//std::cout << std::endl;
+
+			// eq. 26
+			Nij_sigma_k_l_conj = (Nij_el + Nji_el - Nij_min_el - Nji_min_el)/
+				(Nij_max_el + Nji_max_el - Nij_min_el - Nji_min_el + DBL_MIN);
+
+			// F_conj eq. 22 page 6
+			if(enable_F)
+			{
+				ret += weight*F_conj(Nij_sigma, Nji_sigma, Nij_sigma_k_l_conj);
+			}
+
+			// A(ntibonding) term eq. 33 page 6
+			if(enable_A)
+			{
+				if(((Nij_sigma == Nji_sigma) and (Nij_sigma == 1 or Nij_sigma == 2))
+					or (Nij_sigma == 1 and Nji_sigma == 2)
+					or (Nij_sigma == 2 and Nji_sigma == 1))
+				{
+					ret += weight*A(Nij_el - Nji_el);
+				}
+			}
+
+			// T(orsion) term eq. 35 page 7
+			if(enable_T)
+			{
+				if((Nij_sigma == Nji_sigma) and  Nij_sigma == 2)
+				{
+					ret += weight*T(i, j, Nij_sigma_k_l_conj, Nij_el - Nji_el);
+				}
+			}
+		}
+
+		return ret;
 	}
 	// (10)
 	double LCBOPII::N_ijk(Atom *i, Atom *j, Atom *k)
@@ -454,71 +540,6 @@ namespace simul
 		return R_0 + R_1*(x - d);
 	}
 
-	// (22)
-	double LCBOPII::F_conj(Atom *i, Atom *j)
-	{
-		double ret = 0.0;
-		double mul = 1.0;
-
-		unsigned int w_ij, wji;
-		/**
-		 *	K, L number of neighbours of "i" without "j" and vice versa
-		 */
-		const uint32_t K = i->get_bonds().size() - 1;
-		const uint32_t L = j->get_bonds().size() - 1;
-
-		const uint32_t MAX_CONFIGURATION = 0x01 << (K + L);
-		uint32_t sigmas;
-
-		double Nij_el, Nji_el, Nij_max_el, Nji_max_el, Nij_min_el, Nji_min_el;
-		unsigned int Nij_sigma, Nji_sigma;
-		double Mij_sigma,  Mji_sigma;
-		double Nij_sigma_k_l_conj;
-
-		/**
-		 * Higer L bits of "configuration" are neighbours of "j" sigmas
-		 * Lower K bits of "configuration" are neighbours of "i" sigmas
-		 */
-		for(u_int32_t configuration = 0L; configuration < MAX_CONFIGURATION; configuration++)
-		{
-			//Current sigmas for "i" nn.
-			//std::cout << "conf. " << configuration << std::endl;
-			sigmas = configuration & (~(UINT32_MAX<<K));
-			mul = W_ij(i, j, sigmas);
-			if(mul == 0.0) continue;
-
-			Nij_sigma = N_ij_sigma_k(sigmas);
-			Mij_sigma = M_ij_sigma_k(i, j, sigmas);
-			Nij_el = N_ij_el(Nij_sigma, Mij_sigma);
-			Nij_min_el = N_ij_min_el(Nij_sigma);
-			Nij_max_el = N_ij_max_el(Nij_sigma);
-			//std::cout << "Nij_sigma " << Nij_sigma << std::endl;
-
-			//Current sigmas for "j" nn.
-			sigmas = configuration >> K;
-			mul *= W_ij(j, i, sigmas);
-			if(mul == 0.0) continue;
-
-			Nji_sigma =  N_ij_sigma_k(sigmas);
-			Mji_sigma =  M_ij_sigma_k(j, i, sigmas);
-			Nji_el =     N_ij_el(Nji_sigma, Mji_sigma);
-			Nji_min_el = N_ij_min_el(Nji_sigma);
-			Nji_max_el = N_ij_max_el(Nji_sigma);
-			//std::cout << "Nji_sigma " << Nji_sigma << std::endl;
-			//std::cout << std::endl;
-
-			// eq. 26
-			Nij_sigma_k_l_conj = (Nij_el + Nji_el - Nij_min_el - Nji_min_el)/
-				(Nij_max_el + Nji_max_el - Nij_min_el - Nji_min_el + DBL_MIN);
-
-			mul *= (1.0 - Nij_sigma_k_l_conj)*F_ij_0[Nij_sigma][Nji_sigma]
-					     + Nij_sigma_k_l_conj*F_ij_1[Nij_sigma][Nji_sigma] ;
-
-			ret += mul;
-		}
-
-		return ret;
-	}
 	// (23)
 	double LCBOPII::W_ij(Atom *i, Atom *j, uint32_t sigmas)
 	{
@@ -606,75 +627,14 @@ namespace simul
 		}
 		return ret;
 	}
-	// (32)
-	double LCBOPII::A(Atom *i, Atom *j)
+
+	// (35)
+	double LCBOPII::T(Atom *i, Atom *j, double z, double delta_el)
 	{
 		double ret = 0.0;
-		double mul = 1.0;
+		double y;
 
-		unsigned int w_ij, wji;
-		/**
-		 *	K, L number of neighbours of "i" without "j" and vice versa
-		 */
-		const uint32_t K = i->get_bonds().size() - 1;
-		const uint32_t L = j->get_bonds().size() - 1;
 
-		const uint32_t MAX_CONFIGURATION = 0x01 << (K + L);
-		uint32_t sigmas;
-
-		double Nij_el, Nji_el;
-		unsigned int Nij_sigma, Nji_sigma;
-		double Mij_sigma,  Mji_sigma;
-
-		double delta_el;
-
-		//std::cout << "AAAA lLLL" << std::endl;
-		/**
-		 * Higer L bits of "configuration" are neighbours of "j" sigmas
-		 * Lower K bits of "configuration" are neighbours of "i" sigmas
-		 */
-		for(u_int32_t configuration = 0L; configuration < MAX_CONFIGURATION; configuration++)
-		{
-			//Current sigmas for "i" nn.
-			//std::cout << "conf. " << configuration << std::endl;
-			sigmas = configuration & (~(UINT32_MAX<<K));
-			mul = W_ij(i, j, sigmas);
-			if(mul == 0.0) continue;
-
-			Nij_sigma = N_ij_sigma_k(sigmas);
-			//std::cout << "Nij_sigma " << Nij_sigma << std::endl;
-			Nij_sigma = N_ij_sigma_k(sigmas);
-			Mij_sigma = M_ij_sigma_k(i, j, sigmas);
-			Nij_el = N_ij_el(Nij_sigma, Mij_sigma);
-
-			//Current sigmas for "j" nn.
-			sigmas = configuration >> K;
-			mul *= W_ij(j, i, sigmas);
-			if(mul == 0.0) continue;
-
-			Nji_sigma =  N_ij_sigma_k(sigmas);
-			Nji_sigma =  N_ij_sigma_k(sigmas);
-			Mji_sigma =  M_ij_sigma_k(j, i, sigmas);
-			Nji_el =     N_ij_el(Nji_sigma, Mji_sigma);
-			//std::cout << "Nji_sigma " << Nji_sigma << std::endl;
-
-			if(((Nij_sigma == Nji_sigma) and (Nij_sigma == 1 or Nij_sigma == 2))
-				or (Nij_sigma == 1 and Nji_sigma == 2)
-				or (Nij_sigma == 2 and Nji_sigma == 1))
-			{
-				delta_el = Nij_el - Nji_el;
-				//std::cout << "delata_el " << delta_el << std::endl;
-				mul *= (alpha_0 * std::pow(delta_el, 2))/(1 + 10*std::abs(delta_el));
-
-				ret += mul;
-			}
-		}
-
-		return ret;
-	}
-	// (35)
-	double LCBOPII::T(Atom *i, Atom *j)
-	{
 		return 0.0;
 	}
 }

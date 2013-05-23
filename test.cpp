@@ -116,8 +116,9 @@ int main()
 	LCBOPII lcbopii;// = new LCBOPII();
 
 	//test_H(lcbopii);
-	std::cout << lcbopii.F_conj(i, j) << std::endl;
-	std::cout << lcbopii.A(i, j) << std::endl;
+	std::cout << lcbopii.F_A_T(i, j, true, false, false) << std::endl;
+	std::cout << lcbopii.F_A_T(i, j, false, true, false) << std::endl;
+	std::cout << lcbopii.F_A_T(i, j) << std::endl;
 	/*
    std::cout << "H_2(d)" << lcbopii.H_2(lcbopii.d) << std::endl;
    std::cout << "H_3(d)" << lcbopii.H_3(lcbopii.d) << std::endl;*/

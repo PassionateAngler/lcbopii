@@ -99,13 +99,22 @@ namespace simul
 		double V_sr_R(double r);								// (6)
 		double V_sr_A(double r);								// (7)
 		double B(Atom *i, Atom *j);								// (8)
+
+		/**
+		 * function returns F_ij_conj + A_ij + T_ij
+		 */
+		double F_A_T(Atom *i, Atom *j,
+						bool enable_F = true,
+						bool enable_A = true,
+						bool enable_T = true);
+
 		/**
 		 * Term b_ij (p. 3)
 		 */
 		double b(Atom *i, Atom *j);								// (9)
 		double N_ijk(Atom *i, Atom *j, Atom *k);				// (10)
 		double N(Atom *i);										// (11)
-		double G(Atom *i, Atom *j, Atom *k);						// (12)
+		double G(Atom *i, Atom *j, Atom *k);					// (12)
 		double G(double y, double z);							// (12 y,z)
 		double y_0(double z);									// (13)
 		double G_1(double y);									// (14)
@@ -126,16 +135,19 @@ namespace simul
 		static double H_2(double x);
 		double H_3(double x);
 
-		double F_conj(Atom *i, Atom *j);						// (22)
-		double W_ij(Atom *i, Atom *j, uint32_t sigmas);		  // (23)
-		unsigned int N_ij_sigma_k(uint32_t sigmas);			  // (24), (25)
-		double N_ij_el(unsigned int Nij_sigma, double Mij_sigma);  // (27)
-		double M_ij_sigma_k(Atom *i, Atom *j, uint32_t sigmas); // (28)
-		double N_ij_min_el(unsigned int Nij_sigma);                   // (30)
-		double N_ij_max_el(unsigned int Nij_sigma);                   // (30)
+		double F_conj(unsigned int Nij_sigma,						// (22)
+					    unsigned int Nji_sigma,
+					    double Nij_sigma_k_l_conj);
 
-		double A(Atom *i, Atom *j);								// (32)
-		double T(Atom *i, Atom *j);								// (35)
+		double W_ij(Atom *i, Atom *j, uint32_t sigmas);		  		// (23)
+		unsigned int N_ij_sigma_k(uint32_t sigmas);			  		// (24), (25)
+		double N_ij_el(unsigned int Nij_sigma, double Mij_sigma);  	// (27)
+		double M_ij_sigma_k(Atom *i, Atom *j, uint32_t sigmas); 		// (28)
+		double N_ij_min_el(unsigned int Nij_sigma);                 // (30)
+		double N_ij_max_el(unsigned int Nij_sigma);                 // (30)
+
+		double A(double delta_el);									    // (32)
+		double T(Atom *i, Atom *j, double z, double delta_el);		// (35)
 	};
 
 
@@ -172,6 +184,18 @@ namespace simul
 	inline double LCBOPII::N_ij_max_el(unsigned int Nij_sigma)
 	{
 		return 4.0 - Nij_sigma;
+	}
+
+	inline 	double LCBOPII::F_conj(unsigned int Nij_sigma, unsigned int Nji_sigma,
+											double Nij_sigma_k_l_conj)
+	{
+		return (1.0 - Nij_sigma_k_l_conj)*F_ij_0[Nij_sigma][Nji_sigma]
+		          + Nij_sigma_k_l_conj*F_ij_1[Nij_sigma][Nji_sigma] ;
+	}
+
+	inline double LCBOPII::A(double delta_el)
+	{
+		return (alpha_0 * std::pow(delta_el, 2))/(1 + 10*std::abs(delta_el));
 	}
 }
 #endif
