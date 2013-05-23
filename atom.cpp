@@ -4,8 +4,10 @@
 
 namespace simul
 {
+	int Atom::id_cnt = 0;
+
 	Atom::Atom(double x, double y, double z):
-			id(-1)
+		id(id_cnt++)
 	{
 		this->r = gmtl::Vec3d(x, y, z);
 	}

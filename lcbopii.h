@@ -1,6 +1,8 @@
 #ifndef __LCBOPII_H
 #define __LCBOPII_H
 #include <gmtl/gmtl.h>
+#include <cstdint>
+#include <cmath>
 #include "atom.h"
 
 /**
@@ -52,6 +54,13 @@ namespace simul
 		const static double kappa;
 		const static double R_1;
 		const static double C_6;
+
+		// function F(N_ij, N_ji, N_ij_conj)
+		const static double F_ij_0[][4];
+		const static double F_ij_1[][4];
+
+		// function A_ij
+		const static double alpha_0;
 
 	private:
 
@@ -118,6 +127,13 @@ namespace simul
 		double H_3(double x);
 
 		double F_conj(Atom *i, Atom *j);						// (22)
+		double W_ij(Atom *i, Atom *j, uint32_t sigmas);		  // (23)
+		unsigned int N_ij_sigma_k(uint32_t sigmas);			  // (24), (25)
+		double N_ij_el(unsigned int Nij_sigma, double Mij_sigma);  // (27)
+		double M_ij_sigma_k(Atom *i, Atom *j, uint32_t sigmas); // (28)
+		double N_ij_min_el(unsigned int Nij_sigma);                   // (30)
+		double N_ij_max_el(unsigned int Nij_sigma);                   // (30)
+
 		double A(Atom *i, Atom *j);								// (32)
 		double T(Atom *i, Atom *j);								// (35)
 	};
@@ -136,6 +152,26 @@ namespace simul
 	inline double LCBOPII::x_from_q(double q, double q_min, double q_max)
 	{
 		return (q - q_min)/(q_max - q_min);
+	}
+
+	inline unsigned int LCBOPII::N_ij_sigma_k(uint32_t sigmas)
+	{
+		return (sigmas & 1L) + ((sigmas>>1) & 1L) + ((sigmas>>2) & 1L);
+	}
+
+	inline double LCBOPII::N_ij_el(unsigned int  Nij_sigma, double Mij_sigma)
+	{
+		return (4.0 - Mij_sigma)/(Nij_sigma + 1.0 - Mij_sigma);
+	}
+
+	inline double LCBOPII::N_ij_min_el(unsigned int Nij_sigma)
+	{
+		return 4.0/(Nij_sigma + 1.0);
+	}
+
+	inline double LCBOPII::N_ij_max_el(unsigned int Nij_sigma)
+	{
+		return 4.0 - Nij_sigma;
 	}
 }
 #endif

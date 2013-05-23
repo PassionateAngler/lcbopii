@@ -17,9 +17,10 @@ namespace simul
 
 	private:
 		bond_type bonds;
+		static int id_cnt;
+		int id;
 
 	public:
-		int id; //TODO przerobić na static z autoinkrementacja
 		position_type r;
 
 		Atom(double x, double y, double z);

@@ -12,31 +12,31 @@ using namespace  simul;
 
 void test_G(LCBOPII lcbopii)
 {
-	   double y = -1.0;
-	   double step =2/50.0; // 1 - (-1)
-	   double z = 0.0;
-	   double y0;
+	double y = -1.0;
+	double step =2/50.0; // 1 - (-1)
+	double z = 0.0;
+	double y0;
 
-	   while(z <= 8)
-	   {
-		   y = -1.0;
-		   std::cout << "# z=" << z << std::endl;
+	while(z <= 8)
+	{
+		y = -1.0;
+		std::cout << "# z=" << z << std::endl;
 
-		   while(y <= 1.0)
-		   {
-			   std::cout << y << " " << lcbopii.G(y,z) << std::endl;
-			   //std::cout << y << " " << lcbopii.G_1(y) << std::endl;
-			   //std::cout << std::pow((1 - y), 2) << std::endl;
-			   y += step;
-		   }
-		   y0 = lcbopii.y_0(z);
-		   //std::cout << "G_1(y0) = " << lcbopii.G_1(y0) << " G_2(y0) = " << lcbopii.G_2(y0, z, y0) << std::endl;
-		   //std::cout << "G_1_prim(y0) = " << lcbopii.G_1_prim(y0)
-			//	     << " G_2_prim(y0) = " << lcbopii.G_2_prim(y0, z, y0) << std::endl;
-		   std::cout << std::endl;
-		   std::cout << std::endl;
-		   z += 1.0;
-	   }
+		while(y <= 1.0)
+		{
+			std::cout << y << " " << lcbopii.G(y,z) << std::endl;
+			//std::cout << y << " " << lcbopii.G_1(y) << std::endl;
+			//std::cout << std::pow((1 - y), 2) << std::endl;
+			y += step;
+		}
+		y0 = lcbopii.y_0(z);
+		//std::cout << "G_1(y0) = " << lcbopii.G_1(y0) << " G_2(y0) = " << lcbopii.G_2(y0, z, y0) << std::endl;
+		//std::cout << "G_1_prim(y0) = " << lcbopii.G_1_prim(y0)
+		//	     << " G_2_prim(y0) = " << lcbopii.G_2_prim(y0, z, y0) << std::endl;
+		std::cout << std::endl;
+		std::cout << std::endl;
+		z += 1.0;
+	}
 }
 
 void test_H(LCBOPII lcbopii)
@@ -57,8 +57,9 @@ void test_H(LCBOPII lcbopii)
 
 int main()
 {
-   //Atom::bond_type atoms, atoms2;
-   /*std::deque<Atom *> atoms;
+
+	//Atom::bond_type atoms, atoms2;
+	/*std::deque<Atom *> atoms;
    for(int i=0; i<10; i++)
    {
 
@@ -85,12 +86,41 @@ int main()
 	   }
    }*/
 
-   LCBOPII lcbopii;// = new LCBOPII();
 
-   test_H(lcbopii);
-   /*std::cout << lcbopii.H(lcbopii.d) << std::endl;
+	double r = 1.7 + 0.1;
+	double omega = 2.0*M_PI/3.0;
+
+	Atom * i = new Atom(0.0, 0, 0.0);
+	Atom * k1 = new Atom(r*std::cos(omega), r*std::sin(omega), 0.0);
+	Atom * k2 = new Atom(r*std::cos(2*omega), r*std::sin(2*omega), 0.0);
+
+	Atom * j = new Atom(r, 0.0, 0.0);
+	Atom * l1 = new Atom(r*std::cos(omega + M_PI) + r, r*std::sin(omega + M_PI), 0.0);
+	Atom * l2 = new Atom(r*std::cos(2*omega + M_PI) + r, r*std::sin(2*omega + M_PI), 0.0);
+
+	std::cout << i->get_id() << " : " << i->r << std::endl;
+	std::cout << k1->get_id() << " : " << k1->r << std::endl;
+	std::cout << k2->get_id() << " : " << k2->r << std::endl;
+
+	std::cout << j->get_id() << " : " << j->r << std::endl;
+	std::cout << l1->get_id() << " : " << l1->r << std::endl;
+	std::cout << l2->get_id() << " : " << l2->r << std::endl;
+
+	i->addBond(j);
+	i->addBond(k1);
+	i->addBond(k2);
+
+	j->addBond(l1);
+	j->addBond(l2);
+
+	LCBOPII lcbopii;// = new LCBOPII();
+
+	//test_H(lcbopii);
+	std::cout << lcbopii.F_conj(i, j) << std::endl;
+	std::cout << lcbopii.A(i, j) << std::endl;
+	/*
    std::cout << "H_2(d)" << lcbopii.H_2(lcbopii.d) << std::endl;
    std::cout << "H_3(d)" << lcbopii.H_3(lcbopii.d) << std::endl;*/
 
-   return 1;
+	return 1;
 }

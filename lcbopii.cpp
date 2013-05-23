@@ -1,5 +1,8 @@
-#include <cmath>
 #include <gmtl/gmtl.h>
+#include <cmath>
+#include <cstdint>
+#include <cfloat>
+#include <cstdio>
 #include "atom.h"
 #include "lcbopii.h"
 
@@ -127,6 +130,28 @@ namespace simul
 	const double LCBOPII::L = R_0 - 2*C_1*d;
 	const double LCBOPII::kappa = (2*C_1 - R_1)/L;
 
+	/**
+	 * parameters matrices for
+	 * F(N_ij, N_ji, N_ij_conj) function
+	 */
+	const double LCBOPII::F_ij_0[][4] = {
+			{0.0, 0.0207, -0.0046, -0.1278},
+			{0.0207, 0.0, -0.0365, -0.1043},
+			{-0.0046, -0.0365, 0.0, -0.0273},
+			{-0.1278, -0.1043, -0.0273, 0.0}
+	};
+
+	const double LCBOPII::F_ij_1[][4] = {
+			{0.0, 0.0584, 0.0416, -0.1278},
+			{0.0584, 0.1379, 0.0062, -0.1243},
+			{0.0416, 0.0062, 0.0936, -0.0393},
+			{-0.1278, -0.1243, -0.0393, 0.0}
+	};
+
+	/**
+	 * parameter for A_ij
+	 */
+	const double LCBOPII::alpha_0 = 0.95;
 
 	/**
 	 * B. Short range potential
@@ -432,12 +457,220 @@ namespace simul
 	// (22)
 	double LCBOPII::F_conj(Atom *i, Atom *j)
 	{
-		return 0.0;
+		double ret = 0.0;
+		double mul = 1.0;
+
+		unsigned int w_ij, wji;
+		/**
+		 *	K, L number of neighbours of "i" without "j" and vice versa
+		 */
+		const uint32_t K = i->get_bonds().size() - 1;
+		const uint32_t L = j->get_bonds().size() - 1;
+
+		const uint32_t MAX_CONFIGURATION = 0x01 << (K + L);
+		uint32_t sigmas;
+
+		double Nij_el, Nji_el, Nij_max_el, Nji_max_el, Nij_min_el, Nji_min_el;
+		unsigned int Nij_sigma, Nji_sigma;
+		double Mij_sigma,  Mji_sigma;
+		double Nij_sigma_k_l_conj;
+
+		/**
+		 * Higer L bits of "configuration" are neighbours of "j" sigmas
+		 * Lower K bits of "configuration" are neighbours of "i" sigmas
+		 */
+		for(u_int32_t configuration = 0L; configuration < MAX_CONFIGURATION; configuration++)
+		{
+			//Current sigmas for "i" nn.
+			//std::cout << "conf. " << configuration << std::endl;
+			sigmas = configuration & (~(UINT32_MAX<<K));
+			mul = W_ij(i, j, sigmas);
+			if(mul == 0.0) continue;
+
+			Nij_sigma = N_ij_sigma_k(sigmas);
+			Mij_sigma = M_ij_sigma_k(i, j, sigmas);
+			Nij_el = N_ij_el(Nij_sigma, Mij_sigma);
+			Nij_min_el = N_ij_min_el(Nij_sigma);
+			Nij_max_el = N_ij_max_el(Nij_sigma);
+			//std::cout << "Nij_sigma " << Nij_sigma << std::endl;
+
+			//Current sigmas for "j" nn.
+			sigmas = configuration >> K;
+			mul *= W_ij(j, i, sigmas);
+			if(mul == 0.0) continue;
+
+			Nji_sigma =  N_ij_sigma_k(sigmas);
+			Mji_sigma =  M_ij_sigma_k(j, i, sigmas);
+			Nji_el =     N_ij_el(Nji_sigma, Mji_sigma);
+			Nji_min_el = N_ij_min_el(Nji_sigma);
+			Nji_max_el = N_ij_max_el(Nji_sigma);
+			//std::cout << "Nji_sigma " << Nji_sigma << std::endl;
+			//std::cout << std::endl;
+
+			// eq. 26
+			Nij_sigma_k_l_conj = (Nij_el + Nji_el - Nij_min_el - Nji_min_el)/
+				(Nij_max_el + Nji_max_el - Nij_min_el - Nji_min_el + DBL_MIN);
+
+			mul *= (1.0 - Nij_sigma_k_l_conj)*F_ij_0[Nij_sigma][Nji_sigma]
+					     + Nij_sigma_k_l_conj*F_ij_1[Nij_sigma][Nji_sigma] ;
+
+			ret += mul;
+		}
+
+		return ret;
+	}
+	// (23)
+	double LCBOPII::W_ij(Atom *i, Atom *j, uint32_t sigmas)
+	{
+		double mul = 1.0;
+		uint8_t t;
+		Atom * k;
+		int k_idx = 0;
+		uint8_t sigma_k;
+		Atom::bond_type bonds_i = i->get_bonds();
+		Atom::position_type r_ik;
+		double len_ik, S_Nik;
+
+		for(Atom::bond_type::iterator it = bonds_i.begin();
+				it != bonds_i.end(); it++)
+		{
+			k = *it;
+			if(k->get_id() == j->get_id()) continue;
+			r_ik = k->r - i->r;
+			len_ik = gmtl::length(r_ik);
+
+			// sigma of k-th neigbour of "i"
+			sigma_k = (sigmas >> k_idx) & 1L;
+			S_Nik = S_down_N(len_ik);
+
+			if(sigma_k)
+			{
+				mul *= S_Nik;
+			}
+			else
+			{
+				if(S_Nik == 1.0)
+				{
+					/**
+					 * for sigma_k=0 and S_Nik=1 eq. 23 is always 0
+					 */
+					mul = 0.0;
+					break;
+				}
+				else
+				{
+					mul *= (1 - S_Nik);
+				}
+			}
+			k_idx++;
+		}
+		return mul;
+	}
+
+	double LCBOPII::M_ij_sigma_k(Atom *i, Atom *j, uint32_t sigmas)
+	{
+		uint8_t t;
+		Atom * k;
+		int k_idx = 0;
+		uint8_t sigma_k;
+		Atom::bond_type bonds_i = i->get_bonds();
+		Atom::position_type r_ik;
+		double len_ik, Nki;
+
+		double ret = 0.0;
+		for(Atom::bond_type::iterator it = bonds_i.begin();
+				it != bonds_i.end(); it++)
+		{
+			k = *it;
+			if(k->get_id() == j->get_id()) continue;
+			r_ik = k->r - i->r;
+			len_ik = gmtl::length(r_ik);
+
+			// sigma of k-th neigbour of "i"
+			sigma_k = (sigmas >> k_idx) & 1L;
+			k_idx++;
+
+			if(sigma_k)
+			{
+				ret += N(k) - S_down_N(len_ik);
+				if(ret >= 3.0)
+				{
+					ret = 3.0;
+					break;
+				}
+			}
+			else
+			{
+				continue;
+			}
+		}
+		return ret;
 	}
 	// (32)
 	double LCBOPII::A(Atom *i, Atom *j)
 	{
-		return 0.0;
+		double ret = 0.0;
+		double mul = 1.0;
+
+		unsigned int w_ij, wji;
+		/**
+		 *	K, L number of neighbours of "i" without "j" and vice versa
+		 */
+		const uint32_t K = i->get_bonds().size() - 1;
+		const uint32_t L = j->get_bonds().size() - 1;
+
+		const uint32_t MAX_CONFIGURATION = 0x01 << (K + L);
+		uint32_t sigmas;
+
+		double Nij_el, Nji_el;
+		unsigned int Nij_sigma, Nji_sigma;
+		double Mij_sigma,  Mji_sigma;
+
+		double delta_el;
+
+		//std::cout << "AAAA lLLL" << std::endl;
+		/**
+		 * Higer L bits of "configuration" are neighbours of "j" sigmas
+		 * Lower K bits of "configuration" are neighbours of "i" sigmas
+		 */
+		for(u_int32_t configuration = 0L; configuration < MAX_CONFIGURATION; configuration++)
+		{
+			//Current sigmas for "i" nn.
+			//std::cout << "conf. " << configuration << std::endl;
+			sigmas = configuration & (~(UINT32_MAX<<K));
+			mul = W_ij(i, j, sigmas);
+			if(mul == 0.0) continue;
+
+			Nij_sigma = N_ij_sigma_k(sigmas);
+			//std::cout << "Nij_sigma " << Nij_sigma << std::endl;
+			Nij_sigma = N_ij_sigma_k(sigmas);
+			Mij_sigma = M_ij_sigma_k(i, j, sigmas);
+			Nij_el = N_ij_el(Nij_sigma, Mij_sigma);
+
+			//Current sigmas for "j" nn.
+			sigmas = configuration >> K;
+			mul *= W_ij(j, i, sigmas);
+			if(mul == 0.0) continue;
+
+			Nji_sigma =  N_ij_sigma_k(sigmas);
+			Nji_sigma =  N_ij_sigma_k(sigmas);
+			Mji_sigma =  M_ij_sigma_k(j, i, sigmas);
+			Nji_el =     N_ij_el(Nji_sigma, Mji_sigma);
+			//std::cout << "Nji_sigma " << Nji_sigma << std::endl;
+
+			if(((Nij_sigma == Nji_sigma) and (Nij_sigma == 1 or Nij_sigma == 2))
+				or (Nij_sigma == 1 and Nji_sigma == 2)
+				or (Nij_sigma == 2 and Nji_sigma == 1))
+			{
+				delta_el = Nij_el - Nji_el;
+				//std::cout << "delata_el " << delta_el << std::endl;
+				mul *= (alpha_0 * std::pow(delta_el, 2))/(1 + 10*std::abs(delta_el));
+
+				ret += mul;
+			}
+		}
+
+		return ret;
 	}
 	// (35)
 	double LCBOPII::T(Atom *i, Atom *j)

@@ -1,5 +1,5 @@
 CC=g++
-CXXFLAGS=-I/home/pawel/opt/include/gmtl-0.6.1
+CXXFLAGS=-std=c++0x -I/home/pawel/opt/include/gmtl-0.6.1
 
 test:  lcbopii.o atom.o test.o
 atom.o: atom.cpp
