@@ -149,9 +149,18 @@ namespace simul
 	};
 
 	/**
-	 * parameter for A_ij
+	 * parameters for A_ij
 	 */
 	const double LCBOPII::alpha_0 = 0.95;
+
+	/**
+	 * parameters for T_ij
+	 */
+	const double LCBOPII::A_t  = -13.152909887;
+	const double LCBOPII::B_t1 = -0.0486839616;
+	const double LCBOPII::B_t2 = 3.8;
+	const double LCBOPII::B_t3 = 0.62;
+	const double LCBOPII::B_t4 = 0.005;
 
 	/**
 	 * B. Short range potential
@@ -282,7 +291,8 @@ namespace simul
 			{
 				if((Nij_sigma == Nji_sigma) and  Nij_sigma == 2)
 				{
-					ret += weight*T(i, j, Nij_sigma_k_l_conj, Nij_el - Nji_el);
+					ret += weight*t_ij(i, sigmas_k, j, sigmas_l,
+							           Nij_sigma_k_l_conj, Nij_el - Nji_el);
 				}
 			}
 		}
@@ -629,12 +639,89 @@ namespace simul
 	}
 
 	// (35)
-	double LCBOPII::T(Atom *i, Atom *j, double z, double delta_el)
+	double LCBOPII::t_ij(Atom *i, uint32_t sigmas_k,
+				     	    Atom *j, uint32_t sigmas_l,
+				     	    double z, double delta_el)
 	{
 		double ret = 0.0;
 		double y;
+		Atom * nn;
+		Atom::position_type r_ij, r_k1, r_k2, w_ijk_p, w_ijk_m, t_ijk,
+							r_ji, r_l1, r_l2, w_jil_p, w_jil_m, t_jil, cross_v;
 
+		r_ij = j->r - i->r;
+		r_ji = i->r - j->r;
+		gmtl::normalize(r_ij);
+		gmtl::normalize(r_ji);
+
+		_t_ij_search_nn(i, j, &r_k1, &r_k2, sigmas_k);
+		_t_ij_search_nn(j, i, &r_l1, &r_l2, sigmas_l);
+
+		w_ijk_m = r_k1 - r_k2;
+		w_ijk_p = r_k1 + r_k2;
+		gmtl::normalize(w_ijk_m);
+		gmtl::normalize(w_ijk_p);
+
+		/**
+		 * eq. 40
+		 */
+		gmtl::cross(t_ijk, r_ij, w_ijk_m); 		// t_ijk = r_ij x w_ijk_m
+		gmtl::cross(cross_v, r_ij, w_ijk_p);
+		t_ijk +=  gmtl::dot(r_ij, w_ijk_m)*cross_v;
+
+		gmtl::cross(t_jil, r_ji, w_jil_m); 		// t_jil = r_ji x w_jij_m
+		gmtl::cross(cross_v, r_ji, w_jil_p);
+		t_ijk +=  gmtl::dot(r_ji, w_jil_m)*cross_v;
+
+		gmtl::normalize(t_ijk);
+		gmtl::normalize(t_jil);
+
+		/**
+		 * eq. 39
+		 */
+		y = gmtl::dot(t_ijk, t_jil);
 
 		return 0.0;
+	}
+
+	void LCBOPII::_t_ij_search_nn(Atom *center, Atom *pass,
+							  Atom::position_type * r_n1,
+							  Atom::position_type * r_n2,
+							  uint32_t sigmas_nn)
+	{
+		Atom * nn;
+		uint8_t sigma_nn;
+		unsigned int nn_idx = 0;
+		unsigned int nn_cnt = 0;
+		// searching for "i" neighbours "k1" and "k2"
+		for(Atom::bond_type::iterator it = center->get_bonds().begin();
+				it != center->get_bonds().end(); it++)
+		{
+			nn = *it;
+			if(nn->get_id() == pass->get_id()) continue;
+
+			// sigma of k-th neigbour of "i"
+			sigma_nn = (sigmas_nn >> nn_idx) & 1L;
+			nn_idx++;
+
+			if(sigma_nn)
+			{
+				if(nn_cnt == 0)
+				{
+					*r_n1 = nn->r;
+					gmtl::normalize(*r_n1);
+				}
+				else if(nn_cnt == 1)
+				{
+					*r_n2 = nn->r;
+					gmtl::normalize(*r_n2);
+				}
+				else
+				{
+					return;
+				}
+				nn_cnt++;
+			}
+		}
 	}
 }

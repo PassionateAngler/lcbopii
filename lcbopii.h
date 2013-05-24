@@ -62,6 +62,13 @@ namespace simul
 		// function A_ij
 		const static double alpha_0;
 
+		// function T_ij
+		const static double A_t;// = -13.152909887;
+		const static double B_t1;
+		const static double B_t2;
+		const static double B_t3;
+		const static double B_t4;
+
 	private:
 
 		template<typename T> static double THETA(T x)		// Heavyside step function
@@ -75,6 +82,11 @@ namespace simul
 		double S_down(double x, double p);						// (2)
 		double S_up(double x, double p);							// (3)
 		double x_from_q(double q, double q_min, double q_max);	// (4)
+
+		void _t_ij_search_nn(Atom *center, Atom *pass,
+							  Atom::position_type * r_n1,
+							  Atom::position_type * r_n2,
+							  uint32_t sigmas_nn);
 
 	public:
 		/**
@@ -147,7 +159,9 @@ namespace simul
 		double N_ij_max_el(unsigned int Nij_sigma);                 // (30)
 
 		double A(double delta_el);									    // (32)
-		double T(Atom *i, Atom *j, double z, double delta_el);		// (35)
+		double t_ij(Atom *i, uint32_t sigmas_k,						// (35)
+				     Atom *j, uint32_t sigmas_l,
+				     double z, double delta_el);
 	};
 
 
