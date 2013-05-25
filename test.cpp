@@ -7,6 +7,7 @@
 #include <cmath>
 #include "atom.h"
 #include "lcbopii.h"
+#include "printers.h"
 
 using namespace  simul;
 
@@ -55,6 +56,26 @@ void test_H(LCBOPII lcbopii)
 	}
 }
 
+/*class Test
+{
+	virtual void dupa();
+};
+*/
+/*
+class TestAnalizer: public Atom::StructAnalizer
+{
+	virtual void bound_found(Atom *u, Atom *v)
+	{
+		std::cout << "Atom: " << u->get_id() << " --- " << v->get_id() << std::endl;
+	}
+	virtual void atom_found(Atom *u)
+	{
+		std::cout << "Odwiedzilem Atom: " << u->get_id() << std::endl;
+	}
+
+};
+*/
+
 int main()
 {
 
@@ -98,6 +119,7 @@ int main()
 	Atom * l1 = new Atom(r*std::cos(omega + M_PI) + r, r*std::sin(omega + M_PI), 0.0);
 	Atom * l2 = new Atom(r*std::cos(2*omega + M_PI) + r, r*std::sin(2*omega + M_PI), 0.0);
 
+	/*
 	std::cout << i->get_id() << " : " << i->r << std::endl;
 	std::cout << k1->get_id() << " : " << k1->r << std::endl;
 	std::cout << k2->get_id() << " : " << k2->r << std::endl;
@@ -105,6 +127,7 @@ int main()
 	std::cout << j->get_id() << " : " << j->r << std::endl;
 	std::cout << l1->get_id() << " : " << l1->r << std::endl;
 	std::cout << l2->get_id() << " : " << l2->r << std::endl;
+	*/
 
 	i->addBond(j);
 	i->addBond(k1);
@@ -113,12 +136,21 @@ int main()
 	j->addBond(l1);
 	j->addBond(l2);
 
-	LCBOPII lcbopii;// = new LCBOPII();
+	SdfPrinter * aw = new SdfPrinter();
+	std::cout << aw->get_sdf(k1);
+	//std::cout << std::endl;
+	//aw->walk_BFS(k2);
+
+	//std::cout << std::endl;
+	//Atom::walk_BFS(i, new TestAnalizer());
+	//LCBOPII lcbopii;// = new LCBOPII();
 
 	//test_H(lcbopii);
+	/*
 	std::cout << lcbopii.F_A_T(i, j, true, false, false) << std::endl;
 	std::cout << lcbopii.F_A_T(i, j, false, true, false) << std::endl;
 	std::cout << lcbopii.F_A_T(i, j) << std::endl;
+	*/
 	/*
    std::cout << "H_2(d)" << lcbopii.H_2(lcbopii.d) << std::endl;
    std::cout << "H_3(d)" << lcbopii.H_3(lcbopii.d) << std::endl;*/

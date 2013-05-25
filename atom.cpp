@@ -1,4 +1,5 @@
 #include <iostream>
+#include <deque>
 #include <gmtl/gmtl.h>
 #include "atom.h"
 
@@ -7,7 +8,9 @@ namespace simul
 	int Atom::id_cnt = 0;
 
 	Atom::Atom(double x, double y, double z):
-		id(id_cnt++)
+		id(id_cnt++),
+		walk_status(WHITE),
+		visited_switch(false)
 	{
 		this->r = gmtl::Vec3d(x, y, z);
 	}
@@ -47,5 +50,33 @@ namespace simul
 	int Atom::get_id() const
 	{
 		return id;
+	}
+
+	void AtomWalker::walk_BFS(Atom * start)
+	{
+		Atom * u;
+		Atom * v;
+		std::deque<Atom *> Q;
+
+		const bool NON_VISITED = start->visited_switch;
+		const bool VISITED = !start->visited_switch;
+		Q.push_back(start);
+		while(!Q.empty())
+		{
+			u = Q.back();
+			Q.pop_back();
+			for(Atom::bond_type::iterator it = u->get_bonds().begin();
+				it != u->get_bonds().end(); it++)
+			{
+				v = *it;
+				if(v->visited_switch == NON_VISITED)
+				{
+					bound_found(u,v);
+					Q.push_back(v);
+				}
+			}
+			atom_found(u);
+			u->visited_switch = VISITED;
+		}
 	}
 }
