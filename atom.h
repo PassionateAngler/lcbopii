@@ -2,7 +2,7 @@
 #define __ATOM_H
 #include <set>
 #include <iostream>
-#include <gmtl/gmtl.h>
+#include <Eigen/Dense>
 
 
 namespace simul
@@ -13,7 +13,7 @@ namespace simul
 		typedef Atom self_type;
 		/*TODO zamienić to poniżej na map o indeksach atom.id i kluczach *atom */
 		typedef std::set<Atom *> bond_type;
-		typedef gmtl::Vec3d position_type;
+		typedef Eigen::Vector3d position_type;
 
 	private:
 		bond_type bonds;

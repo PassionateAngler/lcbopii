@@ -1,8 +1,8 @@
-#include <gmtl/gmtl.h>
 #include <cmath>
 #include <cstdint>
 #include <cfloat>
 #include <cstdio>
+#include <Eigen/Dense>
 #include "atom.h"
 #include "lcbopii.h"
 
@@ -169,7 +169,7 @@ namespace simul
 	double LCBOPII::V_sr(Atom *i, Atom *j)
 	{
 		Atom::position_type r_ij = j->r - i->r;
-		double r = gmtl::length(r_ij);
+		double r = r_ij.norm();
 
 		return V_sr_R(r) - B(i, j)*V_sr_A(r);
 	}
@@ -206,7 +206,7 @@ namespace simul
 			if(k->get_id() != j->get_id())
 			{
 				r_ik = k->r - i->r;
-				sum += S_down_N(gmtl::length(r_ik));
+				sum += S_down_N(r_ik.norm());
 			}
 		}
 
@@ -306,7 +306,7 @@ namespace simul
 		r_ij = j->r - i->r;
 		r_ik = k->r - i->r;
 
-		return N(i) - S_down_N(gmtl::length(r_ij)) - S_down_N(gmtl::length(r_ik));
+		return N(i) - S_down_N(r_ij.norm()) - S_down_N(r_ik.norm());
 	}
 	// (11)
 	double LCBOPII::N(Atom *i)
@@ -320,7 +320,7 @@ namespace simul
 		{
 			j = *it;
 			r_ij = j->r - i->r;
-			sum += S_down_N(gmtl::length(r_ij));
+			sum += S_down_N(r_ij.norm());
 		}
 
 		return sum;
@@ -332,7 +332,7 @@ namespace simul
 		Atom::position_type r_ik = k->r - i->r;
 
 		//y = cos_theta_ijk
-		double y = gmtl::dot(r_ij, r_ik)/(gmtl::length(r_ij)*gmtl::length(r_ik));
+		double y = r_ij.dot(r_ik)/(r_ij.norm()*r_ik.norm());
 
 		//z = N_ijk
 		double z = N_ijk(i,j,k);
@@ -511,7 +511,7 @@ namespace simul
 		Atom::position_type r_ij = j->r - i->r;
 		Atom::position_type r_ik = k->r - i->r;
 
-		double delta_r_ijk = gmtl::length(r_ij) - gmtl::length(r_ik);  // (page 3)
+		double delta_r_ijk = r_ij.norm() - r_ik.norm();  // (page 3)
 
 		return H(delta_r_ijk);
 	}
@@ -568,7 +568,7 @@ namespace simul
 			k = *it;
 			if(k->get_id() == j->get_id()) continue;
 			r_ik = k->r - i->r;
-			len_ik = gmtl::length(r_ik);
+			len_ik = r_ik.norm();
 
 			// sigma of k-th neigbour of "i"
 			sigma_k = (sigmas >> k_idx) & 1L;
@@ -615,7 +615,7 @@ namespace simul
 			k = *it;
 			if(k->get_id() == j->get_id()) continue;
 			r_ik = k->r - i->r;
-			len_ik = gmtl::length(r_ik);
+			len_ik = r_ik.norm();
 
 			// sigma of k-th neigbour of "i"
 			sigma_k = (sigmas >> k_idx) & 1L;
@@ -651,35 +651,33 @@ namespace simul
 
 		r_ij = j->r - i->r;
 		r_ji = i->r - j->r;
-		gmtl::normalize(r_ij);
-		gmtl::normalize(r_ji);
+		r_ij.normalize();
+		r_ji.normalize();
 
 		_t_ij_search_nn(i, j, &r_k1, &r_k2, sigmas_k);
 		_t_ij_search_nn(j, i, &r_l1, &r_l2, sigmas_l);
 
 		w_ijk_m = r_k1 - r_k2;
 		w_ijk_p = r_k1 + r_k2;
-		gmtl::normalize(w_ijk_m);
-		gmtl::normalize(w_ijk_p);
+		w_ijk_m.normalize();
+		w_ijk_p.normalize();
 
 		/**
 		 * eq. 40
 		 */
-		gmtl::cross(t_ijk, r_ij, w_ijk_m); 		// t_ijk = r_ij x w_ijk_m
-		gmtl::cross(cross_v, r_ij, w_ijk_p);
-		t_ijk +=  gmtl::dot(r_ij, w_ijk_m)*cross_v;
+		t_ijk = r_ij.cross(w_ijk_m) + r_ij.dot(w_ijk_m)*r_ij.cross(w_ijk_p);
 
-		gmtl::cross(t_jil, r_ji, w_jil_m); 		// t_jil = r_ji x w_jij_m
-		gmtl::cross(cross_v, r_ji, w_jil_p);
-		t_ijk +=  gmtl::dot(r_ji, w_jil_m)*cross_v;
+		t_jil = r_ji.cross(w_jil_m) + r_ji.dot(w_jil_m)*r_ji.cross(w_jil_p);
 
-		gmtl::normalize(t_ijk);
-		gmtl::normalize(t_jil);
+		t_ijk.normalize();
+		t_jil.normalize();
 
 		/**
 		 * eq. 39
 		 */
-		y = gmtl::dot(t_ijk, t_jil);
+		y = t_ijk.dot(t_jil);
+
+		/*TODO tu skonczyles !!!!!!*/
 
 		return 0.0;
 	}
@@ -709,12 +707,12 @@ namespace simul
 				if(nn_cnt == 0)
 				{
 					*r_n1 = nn->r;
-					gmtl::normalize(*r_n1);
+					(*r_n1).normalize();
 				}
 				else if(nn_cnt == 1)
 				{
 					*r_n2 = nn->r;
-					gmtl::normalize(*r_n2);
+					(*r_n2).normalize();
 				}
 				else
 				{

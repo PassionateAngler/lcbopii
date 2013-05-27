@@ -1,8 +1,8 @@
 #ifndef __LCBOPII_H
 #define __LCBOPII_H
-#include <gmtl/gmtl.h>
 #include <cstdint>
 #include <cmath>
+#include <Eigen/Dense>
 #include "atom.h"
 
 /**

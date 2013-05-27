@@ -1,8 +1,5 @@
-#include <gmtl/gmtl.h>
-#include <gmtl/Matrix.h>
-#include <boost/ptr_container/ptr_deque.hpp>
-#include <boost/shared_ptr.hpp>
 #include <iostream>
+#include <Eigen/Dense>
 #include <deque>
 #include <cmath>
 #include "atom.h"
@@ -107,7 +104,6 @@ int main()
 	   }
    }*/
 
-
 	double r = 1.7 + 0.1;
 	double omega = 2.0*M_PI/3.0;
 
@@ -115,19 +111,10 @@ int main()
 	Atom * k1 = new Atom(r*std::cos(omega), r*std::sin(omega), 0.0);
 	Atom * k2 = new Atom(r*std::cos(2*omega), r*std::sin(2*omega), 0.0);
 
+
 	Atom * j = new Atom(r, 0.0, 0.0);
 	Atom * l1 = new Atom(r*std::cos(omega + M_PI) + r, r*std::sin(omega + M_PI), 0.0);
 	Atom * l2 = new Atom(r*std::cos(2*omega + M_PI) + r, r*std::sin(2*omega + M_PI), 0.0);
-
-	/*
-	std::cout << i->get_id() << " : " << i->r << std::endl;
-	std::cout << k1->get_id() << " : " << k1->r << std::endl;
-	std::cout << k2->get_id() << " : " << k2->r << std::endl;
-
-	std::cout << j->get_id() << " : " << j->r << std::endl;
-	std::cout << l1->get_id() << " : " << l1->r << std::endl;
-	std::cout << l2->get_id() << " : " << l2->r << std::endl;
-	*/
 
 	i->addBond(j);
 	i->addBond(k1);
@@ -136,8 +123,22 @@ int main()
 	j->addBond(l1);
 	j->addBond(l2);
 
+	Eigen::Vector3d ri = i->r - j->r;
+
+	double theta = M_PI/2;
+	Eigen::AngleAxisd rot_ri(theta, ri.normalized());
+
+	Eigen::Vector3d r_k1_rot = rot_ri * (k1->r - i->r);
+	//std::cout << r_k1_rot << std::endl;
+
+	k1->r += (r_k1_rot - k1->r);
+
+	Eigen::Vector3d r_k2_rot = rot_ri * (k2->r - i->r);
+	k2->r += (r_k2_rot - k2->r);
+
 	SdfPrinter * aw = new SdfPrinter();
 	std::cout << aw->get_sdf(k1);
+
 	//std::cout << std::endl;
 	//aw->walk_BFS(k2);
 
