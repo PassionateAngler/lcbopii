@@ -1,6 +1,6 @@
 #include <iostream>
 #include <deque>
-#include <gmtl/gmtl.h>
+#include <Eigen/Dense>
 #include "atom.h"
 
 namespace simul
@@ -9,10 +9,9 @@ namespace simul
 
 	Atom::Atom(double x, double y, double z):
 		id(id_cnt++),
-		walk_status(WHITE),
 		visited_switch(false)
 	{
-		this->r = gmtl::Vec3d(x, y, z);
+		this->r = Eigen::Vector3d(x, y, z);
 	}
 
 	int Atom::removeBond(Atom *j, bool reverse)

@@ -19,14 +19,16 @@ namespace simul
 		bond_type bonds;
 		static int id_cnt;
 		int id;
-		typedef enum{WHITE, GREY, BLACK} walk_type;
-		unsigned long long walk_status;
 
 	public:
 		position_type r;
 		bool visited_switch;
 
 		Atom(double x, double y, double z);
+		~Atom()
+		{
+			//std::cout << id << " destroyed" << std::endl;
+		}
 		void addBond(Atom * j, bool reverse = true);
 		int removeBond(Atom * j, bool reverse = true);
 
@@ -36,12 +38,13 @@ namespace simul
 
 	class AtomWalker
 	{
-	protected:
+	public:
 		/**
 		 * Breadth-first search of atom structure graph
 		 * @start - atom to start from
 		 */
 		void walk_BFS(Atom * start);
+	protected:
 		virtual void bound_found(Atom *u, Atom *v)
 		{
 			std::cout << u->get_id() << " --- " << v->get_id() << std::endl;

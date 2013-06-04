@@ -75,36 +75,7 @@ class TestAnalizer: public Atom::StructAnalizer
 
 int main()
 {
-
-	//Atom::bond_type atoms, atoms2;
-	/*std::deque<Atom *> atoms;
-   for(int i=0; i<10; i++)
-   {
-
-	   Atom * a = new Atom(i*2.0, i/2.0, i/3.0);
-	   a->id = i;
-	   atoms.push_back(a);
-   }
-
-   for(std::deque<Atom *>::iterator it = atoms.begin(); it != atoms.end()-1; it++)
-   {
-	   Atom * a = *it;
-	   a->addBond(*(it+1));
-   }
-
-   atoms[3]->removeBond(atoms[0]);
-
-   for(std::deque<Atom *>::iterator it = atoms.begin(); it != atoms.end(); it++)
-   {
-	   Atom * a = *it;
-	   std::cout<< a->id << " bonds:" << std::endl;
-	   for(Atom::bond_type::iterator jt = a->get_bonds().begin(); jt != a->get_bonds().end(); jt++)
-	   {
-		   std::cout << "\t" << (*jt)->id << std::endl;
-	   }
-   }*/
-
-	double r = 1.7 + 0.1;
+	double r = 1.42;
 	double omega = 2.0*M_PI/3.0;
 
 	Atom * i = new Atom(0.0, 0, 0.0);
@@ -125,36 +96,68 @@ int main()
 
 	Eigen::Vector3d ri = i->r - j->r;
 
-	double theta = M_PI/2;
+//	for(double theta = 0.0; theta<= M_PI/2.0; theta += M_PI/12.0)
+
+	const double DELTA_THETA = M_PI/180.0;
+
+	Eigen::Vector3d k1_org, k2_org;
+
+	k1_org = k1->r;
+	k2_org = k2->r;
+	LCBOPII lcbopii;// = new LCBOPII();
+	for(double theta = 0.0; theta<= M_PI/2.0; theta += DELTA_THETA )
+	{
+
+	k1->r = k1_org;
+	k2->r = k2_org;
 	Eigen::AngleAxisd rot_ri(theta, ri.normalized());
-
 	Eigen::Vector3d r_k1_rot = rot_ri * (k1->r - i->r);
-	//std::cout << r_k1_rot << std::endl;
-
 	k1->r += (r_k1_rot - k1->r);
 
 	Eigen::Vector3d r_k2_rot = rot_ri * (k2->r - i->r);
 	k2->r += (r_k2_rot - k2->r);
 
+	/*
 	SdfPrinter * aw = new SdfPrinter();
 	std::cout << aw->get_sdf(k1);
+	delete aw;
+	*/
 
 	//std::cout << std::endl;
 	//aw->walk_BFS(k2);
 
 	//std::cout << std::endl;
 	//Atom::walk_BFS(i, new TestAnalizer());
-	//LCBOPII lcbopii;// = new LCBOPII();
 
 	//test_H(lcbopii);
 	/*
-	std::cout << lcbopii.F_A_T(i, j, true, false, false) << std::endl;
-	std::cout << lcbopii.F_A_T(i, j, false, true, false) << std::endl;
-	std::cout << lcbopii.F_A_T(i, j) << std::endl;
+	std::cout << "#Fij= "<< lcbopii.F_A_T(i, j, true, false, false) << std::endl;
+	std::cout << "#Aij= "<< lcbopii.F_A_T(i, j, false, true, false) << std::endl;
+	std::cout << "#Tij= "<< lcbopii.F_A_T(i, j, false, false, true) << std::endl;
 	*/
+
+	//std::cout << theta/M_PI << " " << lcbopii.F_A_T(i, j)*lcbopii.V_sr(i,j) << std::endl;
+	//std::cout << std::endl;
 	/*
    std::cout << "H_2(d)" << lcbopii.H_2(lcbopii.d) << std::endl;
    std::cout << "H_3(d)" << lcbopii.H_3(lcbopii.d) << std::endl;*/
+	/*
+   std::cout << "#V_sr " << lcbopii.V_sr(i, j) << std::endl;
+   std::cout << "#V_sr " << lcbopii.V_sr(i, k1) << std::endl;
+   std::cout << "#V_sr " << lcbopii.V_sr(i, k2) << std::endl;
+   std::cout << "#V_sr " << lcbopii.V_sr(j, i) << std::endl;
+   std::cout << "#V_sr " << lcbopii.V_sr(j, l1) << std::endl;
+   std::cout << "#V_sr " << lcbopii.V_sr(j, l2) << std::endl;
 
+   */
+   //double sum = lcbopii.V_sr(i, j) + lcbopii.V_sr(i, k1) + lcbopii.V_sr(i, k2)
+//		   + lcbopii.V_sr(j, i) + lcbopii.V_sr(j, l1) + lcbopii.V_sr(j, l2);
+
+   //std::cout << theta/M_PI << " " << sum/6 << std::endl;
+
+   //std::cout << "V_sr " << lcbopii.V_sr(j, i) << std::endl;
+	}
+
+	//std::cout << lcbopii.tau_2(1.0, 0);
 	return 1;
 }

@@ -64,11 +64,12 @@ namespace simul
 	const double LCBOPII::one_third = 1.0/3.0;
 
 	const double LCBOPII::g_min = 0.0020588719;
-	//const double LCBOPII::g_gr = 0.0831047003;
+	const double LCBOPII::g_gr = 0.0831047003;
 	/**
 	 * Wartosc g_gr dofitiowana do csplines
 	 */
-	const double LCBOPII::g_gr = 0.0831049;
+	//const double LCBOPII::g_gr = 0.0831049;
+
 	const double LCBOPII::g_max = 16.0;
 
 	const double LCBOPII::g_1_n[] = {
@@ -163,15 +164,79 @@ namespace simul
 	const double LCBOPII::B_t4 = 0.005;
 
 	/**
+	 * Long range potential V_lr parameters
+	 */
+	const double LCBOPII::r_0 = 3.715735;
+	const double LCBOPII::eps_2 = 0.002827918;
+	const double LCBOPII::lambda_1 = 1.338162;
+	const double LCBOPII::lambda_2 = 2.260479;
+	const double LCBOPII::eps_1 = eps_2*std::pow(lambda_2/lambda_1, 2);
+	const double LCBOPII::v_1 = eps_1 - eps_2;
+
+	/**
+	 * Middle - range potential V_mr parameters
+	 */
+	const double LCBOPII::r_1 = 4.0;
+	const double LCBOPII::r_2 = 2.9;
+	const double LCBOPII::A_mr_0 = -0.2345;
+	const double LCBOPII::A_mr_1 = -0.67;
+	const double LCBOPII::A_mr_2 = -4.94;
+
+	/**
+	 * Pair bonding energy Eb_ij (1)
+	 */
+	double LCBOPII::Eb_ij(Atom * i, Atom * j)
+	{
+		Atom::position_type r_ij = j->r - i->r;
+		double r = r_ij.norm();
+		double ret = 0.0;
+
+		double S_d_sr = S_down_sr(r);
+		double Bij =  B(i, j);
+
+		// r < 1.7
+		if(S_d_sr == 1.0){
+			ret = V_sr(i, j, Bij);
+			std::cout << std::endl;
+			return ret;
+		}
+
+		// 1.7 < r  < 2.2
+		if(S_d_sr > 0)
+		{
+			ret += S_down_sr(r)*V_sr(i,j, Bij);
+		}
+
+		// r > 1.7
+		if(S_d_sr < 1) // S_up_sr > 0
+		{
+			std::cout << "LR" << std::endl;
+			ret += (1 - S_d_sr)*V_lr(r);
+			ret += S_up_mr(r)*V_mr(i,j, Bij)/Z_mr_i(i,j);
+		}
+
+		std::cout << std::endl;
+		return ret;
+	}
+
+	/**
 	 * B. Short range potential
 	 */
 	// (5)
-	double LCBOPII::V_sr(Atom *i, Atom *j)
+	double LCBOPII::V_sr(Atom *i, Atom *j, double Bij)
 	{
 		Atom::position_type r_ij = j->r - i->r;
 		double r = r_ij.norm();
 
-		return V_sr_R(r) - B(i, j)*V_sr_A(r);
+		/*
+		std::cout << "V_sr Atom i = " << i->get_id() << std::endl;
+		std::cout << "V_sr_R(r) " << V_sr_R(r) << std::endl;
+		std::cout << "first B(i,j) " << B(i,j) << std::endl;
+		std::cout << "V_sr_A(r) " << V_sr_A(r) << std::endl;
+		*/
+
+		return V_sr_R(r) - Bij*V_sr_A(r);
+		//return r;
 	}
 	// (6)
 	double LCBOPII::V_sr_R(double r)
@@ -187,7 +252,7 @@ namespace simul
 	// (8)
 	double LCBOPII::B(Atom *i, Atom *j)
 	{
-		return 0.5*(b(i,j) + b(j,i)) + F_A_T(i, j);// F_conj(i,j) + A(i,j) + T(i,j);
+		return 0.5*(b(i,j) + b(j,i)) + F_A_T(i, j);
 	}
 	// (9)
 	double LCBOPII::b(Atom *i, Atom *j)
@@ -206,18 +271,35 @@ namespace simul
 			if(k->get_id() != j->get_id())
 			{
 				r_ik = k->r - i->r;
-				sum += S_down_N(r_ik.norm());
+				std::cout << "H("
+								  << i->get_id() << ", "
+						  	  	  << j->get_id() << ", "
+						  	  	  << k->get_id() <<") "
+						  	  	  << H(i, j, k) << std::endl;
+				std::cout << "G("
+								  << i->get_id() << ", "
+						  	  	  << j->get_id() << ", "
+						  	  	  << k->get_id() <<") "
+						  	  	  << G(i, j, k) << std::endl;
+				sum += S_down_N(r_ik.norm())*H(i, j, k)*G(i, j, k);
 			}
 		}
 
-		return 1.0/std::sqrt(1 + sum);
+		sum = 1.0/std::sqrt(1 + sum);
+		if(sum > 0){
+			std::cout << "b(" << i->get_id() << ", " <<  j->get_id() << ") = " << sum << std::endl;
+		}
+		return sum;
 	}
 
 	double LCBOPII::F_A_T(Atom *i, Atom*j,
 			bool enable_F, bool enable_A, bool enable_T)
 	{
+		double part;
 		double ret = 0.0;
-		double weight = 1.0;
+		//double weight = 1.0;
+		double weight_i, weight_j, weight;
+		weight_i = weight_j = 1.0;
 
 		/**
 		 *	K, L number of neighbours of "i" without "j" and vice versa
@@ -233,6 +315,7 @@ namespace simul
 		double Mij_sigma,  Mji_sigma;
 		double Nij_sigma_k_l_conj;
 
+		//std::cout << "K = "<< K << " L = " <<  L << std::endl;
 		/**
 		 * Higer L bits of "configuration" are neighbours of "j" sigmas
 		 * Lower K bits of "configuration" are neighbours of "i" sigmas
@@ -242,19 +325,29 @@ namespace simul
 			//Current sigmas for "i" nn.
 			//std::cout << "conf. " << configuration << std::endl;
 			sigmas_k = configuration & (~(UINT32_MAX<<K));
-			weight = W_ij(i, j, sigmas_k);
-			if(weight == 0.0) continue;
+			weight_i = W_ij(i, j, sigmas_k);
+			//if(weight == 0.0) continue;
 
 			Nij_sigma = N_ij_sigma_k(sigmas_k);
 			Mij_sigma = M_ij_sigma_k(i, j, sigmas_k);
 			Nij_el = N_ij_el(Nij_sigma, Mij_sigma);
 			Nij_min_el = N_ij_min_el(Nij_sigma);
 			Nij_max_el = N_ij_max_el(Nij_sigma);
-			//std::cout << "Nij_sigma " << Nij_sigma << std::endl;
+			std::cout << "Nij_sigma " << Nij_sigma << std::endl;
+			/*
+			std::cout << "Mij_sigma" << Mij_sigma << std::endl;
+			std::cout << "Nij_el"
+			std::cout << "Nij_min_el"
+			std::cout << "Nij_max_el"
+			*/
 
 			//Current sigmas for "j" nn.
 			sigmas_l = configuration >> K;
-			weight *= W_ij(j, i, sigmas_l);
+			weight_j = W_ij(j, i, sigmas_l);
+			std::cout << "sigmas k =  " << sigmas_k << " sigmas l = " << sigmas_l << std::endl;
+			std::cout << "weight k " << weight_i << " weight l " << weight_j << std::endl;
+
+			weight = weight_i*weight_j;
 			if(weight == 0.0) continue;
 
 			Nji_sigma =  N_ij_sigma_k(sigmas_l);
@@ -262,17 +355,34 @@ namespace simul
 			Nji_el =     N_ij_el(Nji_sigma, Mji_sigma);
 			Nji_min_el = N_ij_min_el(Nji_sigma);
 			Nji_max_el = N_ij_max_el(Nji_sigma);
-			//std::cout << "Nji_sigma " << Nji_sigma << std::endl;
-			//std::cout << std::endl;
+			std::cout << "Nji_sigma " << Nji_sigma << std::endl;
+			std::cout << std::endl;
 
+			std::cout << "Mij_sigma = " << Mij_sigma << std::endl;
+			std::cout << "Mji_sigma = " << Mji_sigma << std::endl;
+
+            std::cout << "Nij_el = " << Nij_el << " Nji_el = " << Nji_el
+            		  << " Nij_min_el = " << Nij_min_el
+            		  << " Nji_min_el = " <<  Nji_min_el << std::endl;
+
+            std::cout << "Nij_el + Nji_el - Nij_min_el - Nji_min_el = " <<
+            		Nij_el + Nji_el - Nij_min_el - Nji_min_el << std::endl;
 			// eq. 26
 			Nij_sigma_k_l_conj = (Nij_el + Nji_el - Nij_min_el - Nji_min_el)/
 				(Nij_max_el + Nji_max_el - Nij_min_el - Nji_min_el + DBL_MIN);
 
+
 			// F_conj eq. 22 page 6
 			if(enable_F)
 			{
-				ret += weight*F_conj(Nij_sigma, Nji_sigma, Nij_sigma_k_l_conj);
+				part = weight*F_conj(Nij_sigma, Nji_sigma, Nij_sigma_k_l_conj);
+				//part = weight*F_conj(Nij_sigma, Nji_sigma, 1);
+				std::cout << "F_con("
+						<< Nij_sigma << ", "
+						<< Nji_sigma << ", "
+						<< Nij_sigma_k_l_conj <<
+						") = " << part << std::endl;
+				ret += part;
 			}
 
 			// A(ntibonding) term eq. 33 page 6
@@ -282,7 +392,9 @@ namespace simul
 					or (Nij_sigma == 1 and Nji_sigma == 2)
 					or (Nij_sigma == 2 and Nji_sigma == 1))
 				{
-					ret += weight*A(Nij_el - Nji_el);
+					part = weight*A(Nij_el - Nji_el);
+					std::cout << "A = " << part << std::endl;
+					ret += part;
 				}
 			}
 
@@ -291,12 +403,15 @@ namespace simul
 			{
 				if((Nij_sigma == Nji_sigma) and  Nij_sigma == 2)
 				{
-					ret += weight*t_ij(i, sigmas_k, j, sigmas_l,
+					part = weight*t_ij(i, sigmas_k, j, sigmas_l,
 							           Nij_sigma_k_l_conj, Nij_el - Nji_el);
+					std::cout << "T = " << part << std::endl;
+					ret += part;
 				}
 			}
 		}
 
+		std::cout << "F_A_T for i = "<< i->get_id() << " and j = " <<  j->get_id() << " = " << ret << std::endl;
 		return ret;
 	}
 	// (10)
@@ -334,6 +449,7 @@ namespace simul
 		//y = cos_theta_ijk
 		double y = r_ij.dot(r_ik)/(r_ij.norm()*r_ik.norm());
 
+		std::cout << "cos(i,j,k)= " << y << std::endl;
 		//z = N_ijk
 		double z = N_ijk(i,j,k);
 
@@ -343,11 +459,15 @@ namespace simul
 	double LCBOPII::G(double y, double z)
 	{
 		double y_zero = y_0(z);
+
+		std::cout << "y_zero= " << z << std::endl;
 		return THETA(y_zero - y)*G_1(y) + THETA(y - y_zero)*G_2(y, z, y_zero);
 	}
 	// (13)
 	double LCBOPII::y_0(double z)
 	{
+		//std::cout << "y_0= " <<  A_y0 + B_y0*z*(1.0 + z)<< std::endl;
+
 		return A_y0 + B_y0*z*(1.0 + z);
 	}
 	// (14)
@@ -382,6 +502,7 @@ namespace simul
 			ret += g_max;
 		}
 
+		//std::cout << "G_1= " << ret << std::endl;
 		return ret;
 	}
 
@@ -425,17 +546,17 @@ namespace simul
 	double LCBOPII::G_2(double y, double z, double y0)
 	{
 		double g_zMax = g_z_max(z, y0);
-		std::cout << "#g_z_max " << g_zMax << std::endl;
+		//std::cout << "#g_z_max " << g_zMax << std::endl;
 
 		double g_z2 = g_z_2(z);
 		//double g_z2 = 0.0;
-		std::cout << "#g_z_2 " << g_z2 << std::endl;
+		//std::cout << "#g_z_2 " << g_z2 << std::endl;
 
 		double g_z1 = g_z_1(y0, g_zMax, g_z2);
-		std::cout << "#g_z_1 " << g_z1 << std::endl;
+		//std::cout << "#g_z_1 " << g_z1 << std::endl;
 
 		double g_z0 = g_z_0(y0, g_zMax, g_z1, g_z2);
-		std::cout << "#g_z_0 " << g_z0 << std::endl;
+		//std::cout << "#g_z_0 " << g_z0 << std::endl;
 
 		return  g_zMax + std::pow((1-y), 2)*(
 					g_z0 +
@@ -486,7 +607,7 @@ namespace simul
 	{
 		double G_1prim = G_1_prim(y0);
 
-		std::cout << "#G_1_prim " << G_1prim << std::endl;
+		//std::cout << "#G_1_prim " << G_1prim << std::endl;
 
 		// Funkcja poprawiona przez zemnie w drugim wyrazie
 		// w liczniku powinno byc [G_1 - g_z_max] !!!!
@@ -499,7 +620,7 @@ namespace simul
 	double LCBOPII::g_z_0(double y0, double g_zMax,
 							double g_z1, double g_z2)
 	{
-		std::cout << "# G_1(y0)" << G_1(y0) << std::endl;
+		//std::cout << "# G_1(y0)" << G_1(y0) << std::endl;
 		return (G_1(y0) - g_zMax)/std::pow(y0 - 1, 2) -
 				g_z1*y0 -
 				g_z2*std::pow(y0, 2);
@@ -595,7 +716,10 @@ namespace simul
 			}
 			k_idx++;
 		}
-		return mul;
+		if(k_idx)
+			return mul;
+		else
+			return 0.0;
 	}
 
 	double LCBOPII::M_ij_sigma_k(Atom *i, Atom *j, uint32_t sigmas)
@@ -623,7 +747,7 @@ namespace simul
 
 			if(sigma_k)
 			{
-				ret += N(k) - S_down_N(len_ik);
+				ret += S_up_M(N(k) - S_down_N(len_ik));
 				if(ret >= 3.0)
 				{
 					ret = 3.0;
@@ -646,28 +770,42 @@ namespace simul
 		double ret = 0.0;
 		double y;
 		Atom * nn;
-		Atom::position_type r_ij, r_k1, r_k2, w_ijk_p, w_ijk_m, t_ijk,
-							r_ji, r_l1, r_l2, w_jil_p, w_jil_m, t_jil, cross_v;
+		Atom::position_type r_ij, r_ik1, r_ik2, w_ijk_p, w_ijk_m, t_ijk,
+							r_ji, r_jl1, r_jl2, w_jil_p, w_jil_m, t_jil, dummy_v;
 
 		r_ij = j->r - i->r;
 		r_ji = i->r - j->r;
 		r_ij.normalize();
 		r_ji.normalize();
 
-		_t_ij_search_nn(i, j, &r_k1, &r_k2, sigmas_k);
-		_t_ij_search_nn(j, i, &r_l1, &r_l2, sigmas_l);
+		_t_ij_search_nn(i, j, &r_ik1, &r_ik2, sigmas_k);
+		_t_ij_search_nn(j, i, &r_jl1, &r_jl2, sigmas_l);
 
-		w_ijk_m = r_k1 - r_k2;
-		w_ijk_p = r_k1 + r_k2;
+		w_ijk_m = r_ik1 - r_ik2;
+		w_ijk_p = r_ik1 + r_ik2;
 		w_ijk_m.normalize();
 		w_ijk_p.normalize();
 
-		/**
-		 * eq. 40
-		 */
-		t_ijk = r_ij.cross(w_ijk_m) + r_ij.dot(w_ijk_m)*r_ij.cross(w_ijk_p);
+		w_jil_m = r_jl1 - r_jl2;
+		w_jil_p = r_jl1 + r_jl2;
+		w_jil_m.normalize();
+		w_jil_p.normalize();
 
-		t_jil = r_ji.cross(w_jil_m) + r_ji.dot(w_jil_m)*r_ji.cross(w_jil_p);
+		/**
+		 * eq. 40 for "i"
+		 */
+		t_ijk = r_ij.cross(w_ijk_m);
+		dummy_v = r_ij.cross(w_ijk_p);
+		dummy_v *= r_ij.dot(w_ijk_m);
+		t_ijk += dummy_v;
+
+		/**
+		 * eq. 40 for "j"
+		 */
+		t_jil = r_ji.cross(w_jil_m);
+		dummy_v = r_ji.cross(w_jil_p);
+		dummy_v *= r_ji.dot(w_jil_m);
+		t_jil += dummy_v;
 
 		t_ijk.normalize();
 		t_jil.normalize();
@@ -677,9 +815,31 @@ namespace simul
 		 */
 		y = t_ijk.dot(t_jil);
 
-		/*TODO tu skonczyles !!!!!!*/
+		/*
+		std::cout << "#y = " << y << std::endl;
+		std::cout << "#t_ijk = " << t_ijk.x() << " " << t_ijk.y() << " " << t_ijk.z() << std::endl;
+		std::cout << "#t_jil = " << t_jil.x() << " " << t_jil.y()  << " " << t_jil.z() << std::endl;
+		std::cout << "#z = " << z << std::endl;
+		std::cout << "#delat_el = " << delta_el << std::endl;
+		*/
 
-		return 0.0;
+		return t_ij(y, z, std::pow(delta_el, 2));
+	}
+
+	double LCBOPII::t_ij(double y, double z, double delta_el)
+	{
+		double y_q = std::pow(y, 2);
+		double delta_el_q = std::pow(delta_el, 2);
+
+		if(z <= 1.0/8.0)
+		{
+			return tau_1(z)*std::pow(y_q*(1 - y_q), 2);
+		}
+		else
+		{
+			return tau_2(z, delta_el_q)*(1 - y_q)*std::pow(2 - y_q, 2);
+			//return -0.01837987358053528*(1 - y_q)*std::pow(2 - y_q, 2);
+		}
 	}
 
 	void LCBOPII::_t_ij_search_nn(Atom *center, Atom *pass,
@@ -707,11 +867,13 @@ namespace simul
 				if(nn_cnt == 0)
 				{
 					*r_n1 = nn->r;
+					*r_n1 -= center->r;
 					(*r_n1).normalize();
 				}
 				else if(nn_cnt == 1)
 				{
 					*r_n2 = nn->r;
+					*r_n2 -= center->r;
 					(*r_n2).normalize();
 				}
 				else
@@ -722,4 +884,137 @@ namespace simul
 			}
 		}
 	}
+
+	/**
+	 * C. Long-range potential
+	 */
+	double LCBOPII::V_lr(double r)										// (42)
+	{
+		double ret = S_down_lr(r);
+
+		if(ret == 0.0) return 0.0;
+
+		double r_r0 = r - r_0;
+
+		if(THETA(-r_r0) > 0)
+		{
+			return ret*V_lr_1(r_r0);
+		}
+		else
+		{
+			return ret*V_lr_2(r_r0);
+		}
+	}
+
+	/**
+	 * D. Middle-range potential
+	 */
+	double LCBOPII::V_mr(Atom * i, Atom * j, double Bij)
+	{
+		double Ndb_ij = N_db_ij(i, j);
+		double x_db = x_db_ij(Ndb_ij);
+
+		if(Ndb_ij <= 1)
+		{
+			return 0.0;
+		}
+		else if(Ndb_ij > 1 and Ndb_ij <= 2)
+		{
+
+		}
+		else if(Ndb_ij > 2 and Ndb_ij <=3)
+		{
+
+		}
+		else
+		{
+			return 0.0;
+		}
+
+	};
+
+	double LCBOPII::N_db_ij(Atom *i, Atom *j)
+	{
+		double ret = 4.0;
+		Atom * k;
+		Eigen::Vector3d r_ki;
+
+		// searching for "i" neighbours "k1" and "k2"
+		for(Atom::bond_type::iterator it = i->get_bonds().begin();
+				it != i->get_bonds().end(); it++)
+		{
+			k = *it;
+			if(j->get_id() == i->get_id()) continue;
+
+			r_ki = i->r - k->r;
+
+			ret -= S_down_N(r_ki.norm())*N_el_ki(k, i, r_ki.norm());
+		}
+
+		return ret;
+	}
+
+	double LCBOPII::N_el_ki(Atom * k, Atom * i, double r_ki)
+	{
+		double Nki = N(k) - S_down_N(r_ki);
+		double Mki = M_ki(k, i);
+		double SdMki = S_down_sat(Nki)*Mki;
+
+		double ret = (4 - SdMki)/(Nki + 1 - SdMki);
+
+		return ret;
+	}
+
+	double LCBOPII::M_ki(Atom * k, Atom * i)
+	{
+		double ret = 0.0;
+		double Nmk;
+		Atom * m;
+		Eigen::Vector3d r_mk;
+
+		for(Atom::bond_type::iterator it = k->get_bonds().begin();
+				it != k->get_bonds().end(); it++)
+		{
+			m = *it;
+			if(k->get_id() == i->get_id()) continue;
+
+			r_mk = m->r - k->r;
+			Nmk = N(m) - S_down_N(r_mk.norm());
+			ret += S_down_N(r_mk.norm())*S_up_M(Nmk);
+		}
+
+		return ret;
+	}
+
+	double LCBOPII::gamma_ij(Atom * i, Atom *j, double Bij)
+	{
+		if(Bij == 0.0) return 1.0;
+
+		double sum = 0.0;
+		Atom * k;
+		Eigen::Vector3d r_ij, r_ik;
+
+		r_ij = j->r - i->r;
+
+		double Nij = N(i) - S_down_N(r_ij.norm());
+
+		//if(Nij == 0.0) return 1.0;
+
+		for(Atom::bond_type::iterator it = i->get_bonds().begin();
+				it != i->get_bonds().end(); it++)
+		{
+			k = *it;
+			if(j->get_id() == i->get_id()) continue;
+			r_ik = k->r - i->r;
+			sum += S_down_N(r_ik.norm())*
+						std::pow(1 + (r_ij.dot(r_ik)/(r_ij.norm()*r_ik.norm())), 4);
+		}
+		return 1.0/(1 + Bij*sum/Nij);
+	}
+
+	double LCBOPII::Z_mr_i(Atom * i, Atom *j)
+	{
+		/*TODO*/
+		return 1.0;
+	};
 }

@@ -69,6 +69,16 @@ namespace simul
 		const static double B_t3;
 		const static double B_t4;
 
+		/**
+		 * Long range potential V_lr parameters
+		 */
+		const static double r_0, eps_2, lambda_1, lambda_2, eps_1, v_1;
+
+		/**
+		 * Middle - range potential V_mr parameters
+		 */
+		const static double A_mr_0, A_mr_1, A_mr_2, r_1, r_2;
+
 	private:
 
 		template<typename T> static double THETA(T x)		// Heavyside step function
@@ -105,9 +115,14 @@ namespace simul
 		double S_up_gamma_2(double q);
 
 		/**
+		 * Pair bonding energy Eb_ij (1)
+		 */
+		double Eb_ij(Atom * i, Atom * j);
+
+		/**
 		 * B. Short range potential
 		 */
-		double V_sr(Atom *i, Atom *j);							// (5)
+		double V_sr(Atom *i, Atom *j, double Bij);			// (5)
 		double V_sr_R(double r);								// (6)
 		double V_sr_A(double r);								// (7)
 		double B(Atom *i, Atom *j);								// (8)
@@ -162,6 +177,30 @@ namespace simul
 		double t_ij(Atom *i, uint32_t sigmas_k,						// (35)
 				     Atom *j, uint32_t sigmas_l,
 				     double z, double delta_el);
+		double t_ij(double y, double z, double delta_el);			// (35)
+
+		double tau_1(double z);										// (36)
+		double tau_2(double z, double delta_el_q);						// (38)
+
+		/**
+		 * C. Long-range potential
+		 */
+		double V_lr(double r);										// (42)
+		double V_lr_1(double r_r0);									// (43)
+		double V_lr_2(double r_r0);									// (43)
+
+		/**
+		 * D. Middle-range potential
+		 */
+		double V_mr(Atom * i, Atom * j, double Bij);					// (44)
+		double x_db_ij(double Ndb_ij);								// (45)
+		double N_db_ij(Atom * i, Atom * j);							// (46)
+		double N_el_ki(Atom * k, Atom * i, double r_ki);				// (47)
+		double M_ki(Atom * k, Atom * i);								// (48)
+		double V_mr_n(double r_ij, double A_mr_n);					// (49)
+		double V_mr_2(double r_ij);									// (50)
+		double gamma_ij(Atom * i, Atom * j, double Bij);    			// (51)
+		double Z_mr_i(Atom * i, Atom *j);								// (53)
 	};
 
 
@@ -210,6 +249,49 @@ namespace simul
 	inline double LCBOPII::A(double delta_el)
 	{
 		return (alpha_0 * std::pow(delta_el, 2))/(1 + 10*std::abs(delta_el));
+	}
+
+	inline double LCBOPII::tau_1(double z)
+	{
+		return A_t*std::pow(z - 1.0/8.0, 2);
+	}
+
+	inline double LCBOPII::tau_2(double z, double delta_el_q)
+	{
+		return B_t1*std::pow(
+						(z - 1.0/8.0) * (z + B_t2*delta_el_q*(delta_el_q - std::pow(2.0/3.0, 2))),
+						2
+					)*(1 - B_t3*z)/
+					(B_t4 + std::pow(z - 1.0/8.0, 2));
+	}
+
+	inline double LCBOPII::V_lr_1(double r_r0)
+	{
+		return eps_1*(
+					std::exp(-2*lambda_1*r_r0) - 2*std::exp(-2*lambda_1*r_r0)
+				) + v_1;
+	}
+
+	inline double LCBOPII::V_lr_2(double r_r0)
+	{
+		return eps_2*(
+					std::exp(-2*lambda_2*r_r0) - 2*std::exp(-2*lambda_2*r_r0)
+				);
+	}
+
+	inline double LCBOPII::x_db_ij(double Ndb_ij)
+	{
+		return THETA(Ndb_ij)*(Ndb_ij - ((int)Ndb_ij));
+	}
+
+	inline double LCBOPII::V_mr_n(double r_ij, double A_mr_n)
+	{
+		return A_mr_n*THETA(r_1 - r_ij)*std::pow(r_1 - r_ij, 3);
+	}
+
+	inline double LCBOPII::V_mr_2(double r_ij)
+	{
+		return A_mr_2*THETA(r_2 - r_ij)*std::pow(r_2 - r_ij, 2);
 	}
 }
 #endif
